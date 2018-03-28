@@ -13,7 +13,7 @@
 #'
 #' @export
 #'
-getImputed <- function(data.obs, p, sf, CE, cell.type, parallel = T) {
+getImputed <- function(data.obs, p, sf, CE, cell.type, k, b, parallel = T) {
   cell.type <- as.numeric(cell.type)
   ngene <- nrow(data.obs)
   ncell <- ncol(data.obs)
@@ -26,9 +26,10 @@ getImputed <- function(data.obs, p, sf, CE, cell.type, parallel = T) {
   est.mu <- cbind(exp(p[,2]), exp(p[,2]+p[,3]))
   est.disp <- exp(p[,4])
   if (parallel) {
-    temp <- foreach (i = 1:ngene, .combine = 'rbind', .packages = c('VGAM', 'DECENT')) %dopar% {
+    temp <- foreach (i = 1:ngene, .combine = 'rbind', .packages = c('VGAM', 'DECENT2')) %dopar% {
       out <- EstepByGene(par = DO.coef, z = data.obs[i, ], z.ind = data.obs[i, ] > 0, sf = sf,
-                         pi0 = est.pi0[i, cell.type], mu = est.mu[i, cell.type], disp = est.disp[i])
+                         pi0 = est.pi0[i, cell.type], mu = est.mu[i, cell.type], disp = est.disp[i],
+                         k = k, b = b)
       return(c(ifelse(is.na(out$EYZ0E1), data.obs[i, ], out$EYZ0E1), 1 - out$PE0Z0))
     }
     data.imp <- temp[, 1:ncell]
@@ -39,7 +40,8 @@ getImputed <- function(data.obs, p, sf, CE, cell.type, parallel = T) {
     PE <- matrix(0, ngene, ncell)
     for (i in 1:ngene) {
       out <- EstepByGene(par = DO.coef, z = data.obs[i, ], z.ind = data.obs[i, ] > 0, sf = sf,
-                         pi0 = est.pi0[i, cell.type], mu = est.mu[i, cell.type], disp = est.disp[i])
+                         pi0 = est.pi0[i, cell.type], mu = est.mu[i, cell.type], disp = est.disp[i],
+                         k = k, b = b)
       data.imp[i, ] <- ifelse(is.na(out$EYZ0E1),data.obs[i, ],out$EYZ0E1)
       PE[i, ]<- 1 - out$PE0Z0
     }

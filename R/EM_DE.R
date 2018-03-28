@@ -24,7 +24,7 @@
 #' @import edgeR
 #'
 #' @export
-fitDE <- function (data.obs, cell.type, spikes, spike.conc, CE.range, use.spikes, normalize,
+fitDE <- function (data.obs, cell.type, spikes, spike.conc, CE.range, k, b, use.spikes, normalize,
                    GQ.approx, maxit, parallel) {
 
   if (class(cell.type) == 'factor') {
@@ -46,7 +46,7 @@ fitDE <- function (data.obs, cell.type, spikes, spike.conc, CE.range, use.spikes
     DO.coef[,1] <- log(capeff.spike/(1-capeff.spike))
     CE <- capeff.spike
   } else {
-    rand.CE <- sort(runif(ncell, 0.05, 0.20))
+    rand.CE <- sort(runif(ncell, CE.range[1], CE.range[2]))
     CE <- rep(0, ncell)
     lib.size <- apply(data.obs, 2, sum, na.rm = T)
     CE[order(lib.size, decreasing=FALSE)] <- rand.CE
@@ -87,15 +87,17 @@ fitDE <- function (data.obs, cell.type, spikes, spike.conc, CE.range, use.spikes
     # E-step gene by gene
     if (parallel) {
       if (!GQ.approx) {
-        temp <- foreach (i = 1:ngene, .combine = 'rbind', .packages = c('DECENT')) %dopar% {
+        temp <- foreach (i = 1:ngene, .combine = 'rbind', .packages = c('DECENT2')) %dopar% {
           out <- EstepByGene(par = DO.coef, z = data.obs[i, ], z.ind = data.obs[i, ] > 0, sf = est.sf,
-                              pi0 = est.pi0[i, cell.type], mu = est.mu[i, cell.type], disp = est.disp[i])
+                              pi0 = est.pi0[i, cell.type], mu = est.mu[i, cell.type], disp = est.disp[i],
+                             k = k, b = b)
           return(c(ifelse(is.na(out$EYZ0E1),data.obs[i, ],out$EYZ0E1), 1 - out$PE0Z0))
         }
       } else {
-        temp <- foreach (i = 1:ngene, .combine = 'rbind', .packages = c('MASS','ZIM', 'DECENT')) %dopar% {
+        temp <- foreach (i = 1:ngene, .combine = 'rbind', .packages = c('MASS','ZIM', 'DECENT2')) %dopar% {
           out <- Estep2ByGene(par = DO.coef,z = data.obs[i, ], z.ind = data.obs[i, ]>0, sf = est.sf,
-                               pi0 = est.pi0[i, cell.type], mu = est.mu[i, cell.type], disp = est.disp[i], GQ.object = gq)
+                              pi0 = est.pi0[i, cell.type], mu = est.mu[i, cell.type], disp = est.disp[i],
+                              k = k, b = b, GQ.object = gq)
           return(c(ifelse(is.na(out$EYZ0E1),data.obs[i, ],out$EYZ0E1), 1 - out$PE0Z0))
         }
       }
@@ -107,14 +109,16 @@ fitDE <- function (data.obs, cell.type, spikes, spike.conc, CE.range, use.spikes
         for (i in 1:ngene) {
           # use E-step with expected value evaluated using GQ integral
           out <- EstepByGene(par = DO.coef, z = data.obs[i, ], z.ind = data.obs[i, ] > 0, sf = est.sf,
-                             pi0 = est.pi0[i, cell.type], mu = est.mu[i, cell.type], disp = est.disp[i])
+                             pi0 = est.pi0[i, cell.type], mu = est.mu[i, cell.type], disp = est.disp[i],
+                             k = k, b = b)
           data.imp[i, ] <- ifelse(is.na(out$EYZ0E1),data.obs[i, ],out$EYZ0E1)
           PE[i, ]<- 1 - out$PE0Z0
         }
       } else {
         for (i in 1:ngene) {
           out <- Estep2ByGene(par = DO.coef,z = data.obs[i, ], z.ind = data.obs[i, ]>0, sf = est.sf,
-                              pi0 = est.pi0[i, cell.type], mu = est.mu[i, cell.type], disp = est.disp[i], GQ.object = gq)
+                              pi0 = est.pi0[i, cell.type], mu = est.mu[i, cell.type], disp = est.disp[i],
+                              k = k, b = b, GQ.object = gq)
           data.imp[i, ] <- ifelse(is.na(out$EYZ0E1), data.obs[i, ], out$EYZ0E1)
           PE[i, ] <- 1 - out$PE0Z0
         }
@@ -144,7 +148,7 @@ fitDE <- function (data.obs, cell.type, spikes, spike.conc, CE.range, use.spikes
     # M-step 3: Update pi_0, mu and phi, gene-by-gene
     loglik <- rep(0, ngene)
     if (parallel) {
-      temp <- foreach (i = 1:ngene, .combine = 'rbind', .packages = c('ZIM', 'DECENT')) %dopar% {
+      temp <- foreach (i = 1:ngene, .combine = 'rbind', .packages = c('ZIM', 'DECENT2')) %dopar% {
         if (sum(data.imp[i, ])>sum(data.obs[i, ])) {
           prop0 <- ifelse(est.pi0[i, 1] < 0.01,
                           0.025, ifelse(est.pi0[i, 1] > 0.99, 0.975, est.pi0[i,1]))
@@ -155,10 +159,11 @@ fitDE <- function (data.obs, cell.type, spikes, spike.conc, CE.range, use.spikes
           new.mu <- exp(out$p[2] + c(0, out$p[3:(ncelltype + 1)]))
           new.disp <- exp(out$p[length(out$p)])
           if(!GQ.approx){
-            new.loglik <- -loglI(p = out$p, sf = est.sf, ct = cell.type, DO.par = DO.coef, z = data.obs[i, ])
+            new.loglik <- -loglI(p = out$p, sf = est.sf, ct = cell.type, DO.par = DO.coef, k = k, b = b,
+                                 z = data.obs[i, ])
           } else {
-            new.loglik <- -loglI2(p = out$p, sf = est.sf, ct = cell.type, DO.par = DO.coef, z = data.obs[i, ],
-                                    GQ.object = gq)
+            new.loglik <- -loglI2(p = out$p, sf = est.sf, ct = cell.type, DO.par = DO.coef, k = k, b = b,
+                                  z = data.obs[i, ], GQ.object = gq)
           }
           return(c(new.pi0, new.mu, new.disp, new.loglik))
         } else {
@@ -182,10 +187,11 @@ fitDE <- function (data.obs, cell.type, spikes, spike.conc, CE.range, use.spikes
           est.mu[i, ]  <- exp(out$p[2] + c(0, out$p[3:(ncelltype + 1)]))
           est.disp[i] <- exp(out$p[length(out$p)])
           if (!GQ.approx) {
-            loglik[i] <- -loglI(p = out$p, sf = est.sf, ct = cell.type, DO.par = DO.coef, z = data.obs[i, ])
+            loglik[i] <- -loglI(p = out$p, sf = est.sf, ct = cell.type, DO.par = DO.coef, k = k, b = b,
+                                z = data.obs[i, ])
           } else {
-            loglik[i] <- -loglI2(p = out$p, sf = est.sf, ct = cell.type, DO.par = DO.coef, z = data.obs[i, ],
-                                    GQ.object = gq)
+            loglik[i] <- -loglI2(p = out$p, sf = est.sf, ct = cell.type, DO.par = DO.coef, k = k, b = b,
+                                 z = data.obs[i, ], GQ.object = gq)
           }
         }
       }

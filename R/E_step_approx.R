@@ -12,15 +12,16 @@
 #' @param disp Reciprocal of gene-specific size parameter for
 #' @param GQ.object Gauss-Legendre quadrature points and weights
 #'
-Estep2ByGene <- function(par, z, z.ind, sf, pi0, mu,disp, GQ.object) {
+Estep2ByGene <- function(par, z, z.ind, sf, pi0, mu, disp, k, b, GQ.object) {
 
+  rho <- 1/(1+exp(-k*log((1-pi0)*sf*mu)-b))
   if (disp >= exp(-30)) {
     a <- 1
     b <- max(2, qzinb(0.999, omega = mean(pi0), lambda = max(mu*sf), k = 1/disp))
     new.nodes <- (b - a)/2*GQ.object$nodes + (a + b)/2
 
     # DO.probs is length(new.nodes) x ncell matrix
-    DO.prob <- apply(as.matrix(cbind(z,par)), 1, calc2DOProb, y = new.nodes)
+    DO.prob <- apply(as.matrix(cbind(z,par,rho)), 1, calc2DOProb, y = new.nodes)
 
     NB.prob <- (b - a)/2*diag(GQ.object$weights) %*% t(apply(as.matrix(new.nodes), 1, calc2NBProb, mu = mu*sf, size = 1/disp))
     NB.prob <- NB.prob %*% diag(1-pi0)
@@ -42,7 +43,7 @@ Estep2ByGene <- function(par, z, z.ind, sf, pi0, mu,disp, GQ.object) {
     new.nodes <- (b - a)/2*GQ.object$nodes + (a + b)/2
 
     # DO.probs is length(new.nodes) x ncell matrix
-    DO.prob <- apply(as.matrix(cbind(z,par)), 1, calc2DOProb, y = new.nodes)
+    DO.prob <- apply(as.matrix(cbind(z,par,rho)), 1, calc2DOProb, y = new.nodes)
 
     NB.prob <- (b - a)/2*diag(GQ.object$weights) %*% t(apply(as.matrix(new.nodes), 1, calc2PoisProb, mu = mu*sf))
     NB.prob <- NB.prob %*% diag(1-pi0)
@@ -70,10 +71,11 @@ Estep2ByGene <- function(par, z, z.ind, sf, pi0, mu,disp, GQ.object) {
 #' Calculate Log Likelihood
 #'
 #'
-loglI2 <- function(p, z, sf, ct, DO.par, GQ.object) {
+loglI2 <- function(p, z, sf, ct, DO.par, k, b, GQ.object) {
   pi0 <- exp(p[1])/(1 + exp(p[1]))
   mu  <- exp(p[2]+p[(ct + 1)]*(ct > 1))*sf
   size <- exp(-p[length(p)])
+  rho <- 1/(1+exp(-k*log((1-pi0)*mu)-b))
 
   # DO.probs is length(new.nodes) x ncell matrix
   if (size <= exp(30)) {
@@ -82,7 +84,7 @@ loglI2 <- function(p, z, sf, ct, DO.par, GQ.object) {
     b <- max(2, qzinb(0.999, lambda = max(mu), k = size, omega = pi0))
     new.nodes <- (b-a)/2*GQ.object$nodes + (a+b)/2
 
-    DO.prob <- apply(as.matrix(cbind(z,DO.par)), 1, calc2DOProb, y = new.nodes)
+    DO.prob <- apply(as.matrix(cbind(z,DO.par,rho)), 1, calc2DOProb, y = new.nodes)
     NB.prob <- (b - a)/2*diag(GQ.object$weights) %*% t(apply(as.matrix(new.nodes), 1, calc2NBProb, mu = mu, size = size)) * (1-pi0)
     # evaluate PZ (prob of observed data)
     PZ <- colSums(DO.prob*NB.prob)
@@ -95,7 +97,7 @@ loglI2 <- function(p, z, sf, ct, DO.par, GQ.object) {
     b <- max(2, qzip(0.999, lambda = max(mu), omega = pi0))
     new.nodes <- (b - a)/2*GQ.object$nodes + (a + b)/2
 
-    DO.prob <- apply(as.matrix(cbind(z, DO.par)), 1, calc2DOProb, y = new.nodes)
+    DO.prob <- apply(as.matrix(cbind(z, DO.par, rho)), 1, calc2DOProb, y = new.nodes)
     NB.prob <- (b - a)/2*diag(GQ.object$weights) %*% t(apply(as.matrix(new.nodes), 1, calc2PoisProb, mu = mu))*(1-pi0)
     # evaluate PZ (prob of observed data)
     PZ <- colSums(DO.prob*NB.prob)
@@ -107,8 +109,8 @@ loglI2 <- function(p, z, sf, ct, DO.par, GQ.object) {
 
 #' Calculate probability for dropout model
 #'
-calc2DOProb <- function(x, y, rho = 0.2) {
-  return(dbetabinom2(x[1], prob = exp(x[2] + x[3]*log(y+1))/(1 + exp(x[2] + x[3]*log(y+1))), size = y, rho=rho))
+calc2DOProb <- function(x, y) {
+  return(dbetabinom2(x[1], prob = exp(x[2] + x[3]*log(y+1))/(1 + exp(x[2] + x[3]*log(y+1))), size = y, rho=x[4]))
 #  return(dbinom2(x[1], prob = exp(x[2] + x[3]*log(y+1))/(1 + exp(x[2] + x[3]*log(y+1))), size = y))
 }
 

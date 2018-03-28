@@ -11,10 +11,11 @@
 #' @param mu Gene-specific mean parameter
 #' @param disp Reciprocal of gene-specific size parameter for
 #'
-EstepByGene <- function(par, z, z.ind, sf, pi0, mu, disp, y) {
+EstepByGene <- function(par, z, z.ind, sf, pi0, mu, disp, k, b, y) {
 
+  rho <- 1/(1+exp(-k*log((1-pi0)*sf*mu)-b))
   y <- 1:max(2, qnbinom(0.999, mu = max(mu*sf), size = 1/disp)) #changed to 350 on 01/12/16
-  DO.prob <- apply(as.matrix(cbind(z, par)), 1, calcDOProb, y = y)
+  DO.prob <- apply(as.matrix(cbind(z, par, rho)), 1, calcDOProb, y = y)
 
   NB.prob <- t(apply(as.matrix(y), 1, calcNBProb, mu = mu*sf, size = 1/disp))
   NB.prob <- NB.prob %*% diag(1-pi0)
@@ -47,11 +48,12 @@ loglI <- function(p, z, sf, ct, DO.par) {
   pi0 <- exp(p[1])/(1 + exp(p[1]))
   mu  <- exp(p[2] + p[(ct + 1)]*(ct > 1))*sf
   size <- exp(-p[length(p)])
+  rho <- 1/(1+exp(-k*log((1-pi0)*mu)-b))
 
   f0  <- pi0 + (1-pi0)*dnbinom(0, mu = mu, size = size)
 
   y <- 1:qzinb(0.999, omega = mean(pi0), lambda = max(mu), k = size)
-  DO.prob <- apply(as.matrix(cbind(z,DO.par)), 1, calcDOProb, y = y)
+  DO.prob <- apply(as.matrix(cbind(z,DO.par,rho)), 1, calcDOProb, y = y)
   NB.prob <- t(apply(as.matrix(y), 1, calcNBProb, mu = mu, size = size))*(1-pi0)
 
   # evaluate PZ (prob of observed data)
@@ -65,8 +67,8 @@ loglI <- function(p, z, sf, ct, DO.par) {
 #'
 #' @import VGAM
 #'
-calcDOProb <- function(x, y, rho = 0.2) {
-  return(dbetabinom(x[1], prob = exp(x[2] + x[3]*log(y+1))/(1 + exp(x[2] + x[3]*log(y+1))), size = y, log = FALSE, rho = rho))
+calcDOProb <- function(x, y) {
+  return(dbetabinom(x[1], prob = exp(x[2] + x[3]*log(y+1))/(1 + exp(x[2] + x[3]*log(y+1))), size = y, log = FALSE, rho = x[4]))
 #  return(dbinom(x[1], prob = exp(x[2] + x[3]*log(y+1))/(1 + exp(x[2] + x[3]*log(y+1))), size = y, log = FALSE))
 }
 

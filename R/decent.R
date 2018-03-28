@@ -24,7 +24,7 @@
 #' @import doParallel
 #'
 #' @export
-decent <- function (data.obs, cell.type, spikes = NULL, spike.conc = NULL, CE.range = c(0.02, 0.1),
+decent <- function (data.obs, cell.type, spikes = NULL, spike.conc = NULL, CE.range = c(0.02, 0.1), k, b,
                      use.spikes = FALSE, normalize = 'ML', GQ.approx = TRUE, maxit = 30,
                      parallel = T, n.cores = 0, imputed = F, dir = './') {
 
@@ -44,21 +44,21 @@ decent <- function (data.obs, cell.type, spikes = NULL, spike.conc = NULL, CE.ra
   }
 
   # Fit DE model
-  out.DE <- fitDE(data.obs, cell.type, spikes, spike.conc, CE.range, use.spikes, normalize,
+  out.DE <- fitDE(data.obs, cell.type, spikes, spike.conc, CE.range, k, b, use.spikes, normalize,
                   GQ.approx, maxit, parallel)
   saveRDS(out.DE, paste0(dir, '/decent.DE.rds'))
 
   # Fit no-DE model
-  out.noDE <- fitNoDE(data.obs, CE = out.DE$CE, normalize, GQ.approx, maxit, parallel)
+  out.noDE <- fitNoDE(data.obs, CE = out.DE$CE, k, b, normalize, GQ.approx, maxit, parallel)
   saveRDS(out.noDE, paste0(dir, '/decent.noDE.rds'))
 
   # Likelihood-ratio test
-  out <- lrTest(data.obs, out = out.DE, out2 = out.noDE, cell.type, parallel)
+  out <- lrTest(data.obs, out = out.DE, out2 = out.noDE, cell.type, k, b, parallel)
   saveRDS(out, paste0(dir, '/decent.lrt.rds'))
 
   # get imputed data
   if (imputed) {
-    data.imp <- getImputed(data.obs, out$par.DE, out.DE$est.sf, out.DE$CE, cell.type, parallel)
+    data.imp <- getImputed(data.obs, out$par.DE, out.DE$est.sf, out.DE$CE, cell.type, k, b, parallel)
     saveRDS(data.imp, paste0(dir, '/imputed.rds'))
   }
 

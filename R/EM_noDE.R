@@ -18,7 +18,7 @@
 #' @import edgeR
 #'
 #' @export
-fitNoDE <- function (data.obs, CE, normalize, GQ.approx, maxit, parallel) {
+fitNoDE <- function (data.obs, CE, k, b, normalize, GQ.approx, maxit, parallel) {
 
   ncell <- ncol(data.obs)
   ngene <- nrow(data.obs)
@@ -66,15 +66,16 @@ fitNoDE <- function (data.obs, CE, normalize, GQ.approx, maxit, parallel) {
     # E-step gene by gene
     if (parallel) {
       if (!GQ.approx) {
-        temp <- foreach (i = 1:ngene, .combine = 'rbind', .packages = c('DECENT')) %dopar% {
+        temp <- foreach (i = 1:ngene, .combine = 'rbind', .packages = c('DECENT2')) %dopar% {
           out <- EstepByGene(par = DO.coef, z = data.obs[i, ], z.ind = data.obs[i, ] > 0, sf = est.sf,
                               pi0 = est.pi0[i, cell.type], mu = est.mu[i, cell.type], disp = est.disp[i])
           return(c(ifelse(is.na(out$EYZ0E1),data.obs[i, ],out$EYZ0E1), 1 - out$PE0Z0))
         }
       } else {
-        temp <- foreach (i = 1:ngene, .combine = 'rbind', .packages = c('MASS','ZIM', 'DECENT')) %dopar% {
+        temp <- foreach (i = 1:ngene, .combine = 'rbind', .packages = c('MASS','ZIM', 'DECENT2')) %dopar% {
           out <- Estep2ByGene(par = DO.coef,z = data.obs[i, ], z.ind = data.obs[i, ]>0, sf = est.sf,
-                               pi0 = est.pi0[i, cell.type], mu = est.mu[i, cell.type], disp = est.disp[i], GQ.object = gq)
+                              pi0 = est.pi0[i, cell.type], mu = est.mu[i, cell.type], disp = est.disp[i],
+                              k = k, b = b, GQ.object = gq)
           return(c(ifelse(is.na(out$EYZ0E1),data.obs[i, ],out$EYZ0E1), 1 - out$PE0Z0))
         }
       }
@@ -93,7 +94,8 @@ fitNoDE <- function (data.obs, CE, normalize, GQ.approx, maxit, parallel) {
       } else {
         for (i in 1:ngene) {
           out <- Estep2ByGene(par = DO.coef,z = data.obs[i, ], z.ind = data.obs[i, ]>0, sf = est.sf,
-                              pi0 = est.pi0[i, cell.type], mu = est.mu[i, cell.type], disp = est.disp[i], GQ.object = gq)
+                              pi0 = est.pi0[i, cell.type], mu = est.mu[i, cell.type], disp = est.disp[i],
+                              k = k, b = b, GQ.object = gq)
           data.imp[i, ] <- ifelse(is.na(out$EYZ0E1), data.obs[i, ], out$EYZ0E1)
           PE[i, ] <- 1 - out$PE0Z0
         }
@@ -123,7 +125,7 @@ fitNoDE <- function (data.obs, CE, normalize, GQ.approx, maxit, parallel) {
     # M-step 3: Update pi_0, mu and phi, gene-by-gene
     loglik <- rep(0, ngene)
     if (parallel) {
-      temp <- foreach (i = 1:ngene, .combine = 'rbind', .packages = c('ZIM', 'DECENT')) %dopar% {
+      temp <- foreach (i = 1:ngene, .combine = 'rbind', .packages = c('ZIM', 'DECENT2')) %dopar% {
         if (sum(data.imp[i, ])>sum(data.obs[i, ])) {
           prop0 <- ifelse(est.pi0[i, 1] < 0.01,
                           0.025, ifelse(est.pi0[i, 1] > 0.99, 0.975, est.pi0[i,1]))
@@ -136,8 +138,8 @@ fitNoDE <- function (data.obs, CE, normalize, GQ.approx, maxit, parallel) {
           if(!GQ.approx){
             new.loglik <- -loglI(p = out$p, sf = est.sf, ct = cell.type, DO.par = DO.coef, z = data.obs[i, ])
           } else {
-            new.loglik <- -loglI2(p = out$p, sf = est.sf, ct = cell.type, DO.par = DO.coef, z = data.obs[i, ],
-                                    GQ.object = gq)
+            new.loglik <- -loglI2(p = out$p, sf = est.sf, ct = cell.type, DO.par = DO.coef, k = k, b = b,
+                                  z = data.obs[i, ], GQ.object = gq)
           }
           return(c(new.pi0, new.mu, new.disp, new.loglik))
         } else {
@@ -163,8 +165,8 @@ fitNoDE <- function (data.obs, CE, normalize, GQ.approx, maxit, parallel) {
           if (!GQ.approx) {
             loglik[i] <- -loglI(p = out$p, sf = est.sf, ct = cell.type, DO.par = DO.coef, z = data.obs[i, ])
           } else {
-            loglik[i] <- -loglI2(p = out$p, sf = est.sf, ct = cell.type, DO.par = DO.coef, z = data.obs[i, ],
-                                    GQ.object = gq)
+            loglik[i] <- -loglI2(p = out$p, sf = est.sf, ct = cell.type, DO.par = DO.coef, k = k, b = b,
+                                 z = data.obs[i, ], GQ.object = gq)
           }
         }
       }
