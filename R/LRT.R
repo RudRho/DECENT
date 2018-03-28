@@ -16,7 +16,7 @@
 #'
 #' @export
 #'
-lrTest <- function(data.obs, out, out2, cell.type, k, b, parplallel) {
+lrTest <- function(data.obs, out, out2, cell.type, k, b, parallel) {
 
   message('Likelihood ratio test started at ', Sys.time())
 
@@ -42,16 +42,17 @@ lrTest <- function(data.obs, out, out2, cell.type, k, b, parplallel) {
   if (parallel) {
     temp <- foreach (i = 1:ngene, .combine = 'rbind', .packages = c('DECENT2')) %dopar% {
       y <- 1 : max(100, qnbinom(0.9999, mu = max(out2$est.mu[i]*out2$est.sf), size = 1/out2$est.disp[i]))
-
+      rho_inv <- 1+exp(-k*log((1-out2$est.pi0[i,1])*out2$est.mu[i]*mean(out2$est.sf))-b)
+      message(i, ' rho: ', 1/rho_inv, ' mean: ', (1-out2$est.pi0[i,1])*out2$est.mu[i]*mean(out2$est.sf))
       res2 <- tryCatch(optimLRTCpp(p = c(log(out2$est.pi0[i,1]/(1-out2$est.pi0[i,1])), log(out2$est.mu[i]), -2), y = y,
-                                   sf = out2$est.sf, ct = rep(1, ncell), DO_par = DO.par, z = data.obs[i,], k = k, b = b),
+                                   sf = out2$est.sf, ct = rep(1, ncell), DO_par = DO.par, z = data.obs[i,], rho_inv = rho_inv),
                        error = function(e) {
                          warning("Numerical problem in noDE model for gene ", i);
                          NA
                        })
 
       res1 <- tryCatch(optimLRTCpp(p = c(res2$p[1:2], 0, res2$p[3]), y = y, sf = out2$est.sf, ct = cell.type,
-                                   DO_par = DO.par, z = data.obs[i, ], k = k, b = b),
+                                   DO_par = DO.par, z = data.obs[i, ], rho_inv = rho_inv),
                        error = function(e) {
                          warning("Numerical problem in DE model for gene ", i);
                          NA
@@ -76,14 +77,15 @@ lrTest <- function(data.obs, out, out2, cell.type, k, b, parplallel) {
   } else {
     for(i in 1:ngene) {
       y <- 1 : max(100, qnbinom(0.9999, mu = max(out2$est.mu[i]*out2$est.sf), size = 1/out2$est.disp[i]))
+      rho_inv <- 1+exp(-k*log((1-out2$est.pi0[i,1])*out2$est.mu[i]*mean(out2$est.sf))-b)
       res2 <- tryCatch(optimLRTCpp(p = c(log(out2$est.pi0[i,1]/(1-out2$est.pi0[i,1])), log(out2$est.mu[i]), -2), y = y,
-                                   sf = out2$est.sf, ct = rep(1, ncell), DO_par = DO.par, z = data.obs[i,], k = k, b = b),
+                                   sf = out2$est.sf, ct = rep(1, ncell), DO_par = DO.par, z = data.obs[i,], rho_inv = rho_inv),
                        error = function(e) {
                          warning("numerical problem in noDE model for gene ", i);
                          NA
                        })
       res1 <- tryCatch(optimLRTCpp(p = c(res2$p[1:2], 0, res2$p[3]), y = y, sf = out2$est.sf, ct = cell.type,
-                                   DO_par = DO.par, z = data.obs[i, ], k =k, b = b),
+                                   DO_par = DO.par, z = data.obs[i, ], rho_inv = rho_inv),
                        error = function(e) {
                          warning("numerical problem in DE model for gene ", i);
                          NA

@@ -231,6 +231,7 @@ fitDE <- function (data.obs, cell.type, spikes, spike.conc, CE.range, k, b, use.
   #output[['var']] <- EM.var
   output[['CE']] <- CE
   output[['loglik']] <- loglik.vec[1:iter]
+  output[['logl']] <- loglik
   output[['GQ']] <- gq
 
   return(output)

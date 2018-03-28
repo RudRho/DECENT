@@ -7,8 +7,8 @@
 using namespace Rcpp;
 
 // optimLRTCpp
-Rcpp::List optimLRTCpp(const NumericVector p, const IntegerVector ct, const NumericVector sf, const IntegerVector y, const NumericVector z, const NumericMatrix DO_par, const double k, const double b);
-RcppExport SEXP _DECENT2_optimLRTCpp(SEXP pSEXP, SEXP ctSEXP, SEXP sfSEXP, SEXP ySEXP, SEXP zSEXP, SEXP DO_parSEXP, SEXP kSEXP, SEXP bSEXP) {
+Rcpp::List optimLRTCpp(const NumericVector p, const IntegerVector ct, const NumericVector sf, const IntegerVector y, const NumericVector z, const NumericMatrix DO_par, const double rho_inv);
+RcppExport SEXP _DECENT2_optimLRTCpp(SEXP pSEXP, SEXP ctSEXP, SEXP sfSEXP, SEXP ySEXP, SEXP zSEXP, SEXP DO_parSEXP, SEXP rho_invSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -18,15 +18,14 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const IntegerVector >::type y(ySEXP);
     Rcpp::traits::input_parameter< const NumericVector >::type z(zSEXP);
     Rcpp::traits::input_parameter< const NumericMatrix >::type DO_par(DO_parSEXP);
-    Rcpp::traits::input_parameter< const double >::type k(kSEXP);
-    Rcpp::traits::input_parameter< const double >::type b(bSEXP);
-    rcpp_result_gen = Rcpp::wrap(optimLRTCpp(p, ct, sf, y, z, DO_par, k, b));
+    Rcpp::traits::input_parameter< const double >::type rho_inv(rho_invSEXP);
+    rcpp_result_gen = Rcpp::wrap(optimLRTCpp(p, ct, sf, y, z, DO_par, rho_inv));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_DECENT2_optimLRTCpp", (DL_FUNC) &_DECENT2_optimLRTCpp, 8},
+    {"_DECENT2_optimLRTCpp", (DL_FUNC) &_DECENT2_optimLRTCpp, 7},
     {NULL, NULL, 0}
 };
 
