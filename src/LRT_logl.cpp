@@ -76,11 +76,11 @@ double OptimLRTCpp::loglIBBCpp(NumericVector p) {
   int i, j;
   int n = ct.size();
   int m = y.size();
-  NumericVector mu = exp(p[1] + p[ct] * (ct > 1)) * sf;
-  double rho_inv = 1+exp(-k*log((1-pi0)*mean(mu))-b);
-  rho_inv = 1+exp(-k*log((1-pi0)*mu)-b);
   double pi0 = exp(p[0])/(1 + exp(p[0]));
   double size = exp( -p[p.size()-1] );
+  NumericVector mu(n);
+  for (i = 0; i < n; i++) {mu[i] = exp(p[1] + p[ct[i]] * (ct[i] > 1)) * sf[i];}
+  double rho_inv = 1+exp(-k*log((1-pi0)*Rcpp::mean(mu))-b);
 
   NumericVector PZ(n);
   double prob;
@@ -157,14 +157,15 @@ NumericVector OptimLRTCpp::zinbGrad0Cpp(NumericVector p,  double sf, int ct) {
 
 // Gradient
 NumericVector OptimLRTCpp::loglIBBGradCpp(NumericVector p) {
-  int i, j, k;
+  int i, j, l;
   int n = ct.size();
   int m = y.size();
   int nct = max(ct);
   double pi0 = exp(p[0])/(1 + exp(p[0]));
   double size = exp(-p[p.size()-1]);
-  NumericVector mu = exp(p[1] + p[ct] * (ct > 1)) * sf;
-  double rho_inv = 1+exp(-k*log((1-pi0)*mean(mu))-b);
+  NumericVector mu(n);
+  for (i = 0; i < n; i++) {mu[i] = exp(p[1] + p[ct[i]] * (ct[i] > 1)) * sf[i];}
+  double rho_inv = 1+exp(-k*log((1-pi0)*Rcpp::mean(mu))-b);
 
   NumericVector grad_mat(nct+2);
   NumericVector grad_vec(nct+2);
@@ -172,8 +173,8 @@ NumericVector OptimLRTCpp::loglIBBGradCpp(NumericVector p) {
   double PZ, f0;
   for (i = 0; i < n; i++) {
     PZ = 0;
-    for (k = 0; k < nct+2; k++) { // initialize every iteration
-      grad_mat[k] = 0;
+    for (l = 0; l < nct+2; l++) { // initialize every iteration
+      grad_mat[l] = 0;
     }
     f0 = pi0 + (1-pi0)*dnbinom_mu(0, size, mu[i], 0);
     for (j = 0; j < m; j++) {
@@ -181,8 +182,8 @@ NumericVector OptimLRTCpp::loglIBBGradCpp(NumericVector p) {
       DO_prob = dbetabinom_cpp(z[i], y[j], (rho_inv-1)*prob, (rho_inv-1)*(1-prob));
       NB_prob = dnbinom_mu(y[j], size, mu[i], 0) * (1-pi0);
       PZ +=  DO_prob * NB_prob ;
-      for (k = 0; k < nct+2; k++) {
-        grad_mat[k] += DO_prob * zinbGradCpp(y[j], p, sf[i], ct[i])[k] * NB_prob;
+      for (l = 0; l < nct+2; l++) {
+        grad_mat[l] += DO_prob * zinbGradCpp(y[j], p, sf[i], ct[i])[l] * NB_prob;
       }
     }
     if (z[i] == 0){
@@ -192,8 +193,8 @@ NumericVector OptimLRTCpp::loglIBBGradCpp(NumericVector p) {
     if (PZ == 0){
       PZ = std::numeric_limits<double>::min();
     }
-    for (k = 0; k < nct+2; k++) {
-      grad_vec[k] += grad_mat[k]/PZ;
+    for (l = 0; l < nct+2; l++) {
+      grad_vec[l] += grad_mat[l]/PZ;
     }
   }
   return(grad_vec);
