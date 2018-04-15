@@ -71,13 +71,14 @@ Rcpp::List optimLRTCpp(const NumericVector p, const IntegerVector ct, const Nume
   );
 }
 
-// Cost function (Negative log-likelihood)
+// Cost function (minus log-likelihood)
 double OptimLRTCpp::loglIBBCpp(NumericVector p) {
   int i, j;
   int n = ct.size();
   int m = y.size();
-  double mu;
-  double rho_inv;
+  NumericVector mu = exp(p[1] + p[ct] * (ct > 1)) * sf;
+  double rho_inv = 1+exp(-k*log((1-pi0)*mean(mu))-b);
+  rho_inv = 1+exp(-k*log((1-pi0)*mu)-b);
   double pi0 = exp(p[0])/(1 + exp(p[0]));
   double size = exp( -p[p.size()-1] );
 
@@ -85,15 +86,13 @@ double OptimLRTCpp::loglIBBCpp(NumericVector p) {
   double prob;
   for (i = 0; i < n; i++) {
     PZ[i] = 0;
-    mu = exp(p[1] + p[ct[i]] * (ct[i] > 1)) * sf[i];
-    rho_inv = 1+exp(-k*log((1-pi0)*mu)-b);
     for (j = 0; j < m; j++) {
       prob = exp(DO_par(i, 0) + DO_par(i, 1)*log(y[j]+1)) / ( 1 + exp(DO_par(i, 0) + DO_par(i, 1)*log(y[j]+1)) );
       PZ[i] += dbetabinom_cpp(z[i], y[j], (rho_inv-1)*prob, (rho_inv-1)*(1-prob)) *
-        dnbinom_mu(y[j], size, mu, 0) * (1-pi0);
+        dnbinom_mu(y[j], size, mu[i], 0) * (1-pi0);
     }
     if (z[i] == 0){
-      PZ[i] += ( pi0 + (1-pi0)*dnbinom_mu(0, size, mu, 0) );
+      PZ[i] += ( pi0 + (1-pi0)*dnbinom_mu(0, size, mu[i], 0) );
     }
     if (PZ[i] == 0){
       PZ[i] = std::numeric_limits<double>::min();
@@ -164,8 +163,8 @@ NumericVector OptimLRTCpp::loglIBBGradCpp(NumericVector p) {
   int nct = max(ct);
   double pi0 = exp(p[0])/(1 + exp(p[0]));
   double size = exp(-p[p.size()-1]);
-  double mu;
-  double rho_inv;
+  NumericVector mu = exp(p[1] + p[ct] * (ct > 1)) * sf;
+  double rho_inv = 1+exp(-k*log((1-pi0)*mean(mu))-b);
 
   NumericVector grad_mat(nct+2);
   NumericVector grad_vec(nct+2);
@@ -176,13 +175,11 @@ NumericVector OptimLRTCpp::loglIBBGradCpp(NumericVector p) {
     for (k = 0; k < nct+2; k++) { // initialize every iteration
       grad_mat[k] = 0;
     }
-    mu = exp(p[1] + p[ct[i]] * (ct[i] > 1)) * sf[i];
-    rho_inv = 1+exp(-k*log((1-pi0)*mu)-b);
-    f0 = pi0 + (1-pi0)*dnbinom_mu(0, size, mu, 0);
+    f0 = pi0 + (1-pi0)*dnbinom_mu(0, size, mu[i], 0);
     for (j = 0; j < m; j++) {
       prob = exp(DO_par(i, 0) + DO_par(i, 1)*log(y[j]+1)) / ( 1 + exp(DO_par(i, 0) + DO_par(i, 1)*log(y[j]+1)) );
       DO_prob = dbetabinom_cpp(z[i], y[j], (rho_inv-1)*prob, (rho_inv-1)*(1-prob));
-      NB_prob = dnbinom_mu(y[j], size, mu, 0) * (1-pi0);
+      NB_prob = dnbinom_mu(y[j], size, mu[i], 0) * (1-pi0);
       PZ +=  DO_prob * NB_prob ;
       for (k = 0; k < nct+2; k++) {
         grad_mat[k] += DO_prob * zinbGradCpp(y[j], p, sf[i], ct[i])[k] * NB_prob;
