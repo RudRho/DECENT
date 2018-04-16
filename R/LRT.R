@@ -16,7 +16,7 @@
 #'
 #' @export
 #'
-lrTest <- function(data.obs, out, out2, cell.type, k, b, parplallel) {
+lrTest <- function(data.obs, out, out2, cell.type, k, b, parallel) {
 
   message('Likelihood ratio test started at ', Sys.time())
 
