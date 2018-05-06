@@ -37,19 +37,19 @@ fitNoDE <- function (data.obs, CE, k, b, normalize, GQ.approx, maxit, parallel) 
   est.sf <- est.sf/mean(est.sf)
 
   # Initialize other ZINB parameters
-  est.mu <- matrix(0, ngene, ncelltype)
-  for (K in 1:ncelltype) {
-    est.mu[, K] <- 2 + apply(data.obs[, cell.type == K], 1, quantile, prob = 0.9)
-  }
   est.disp  <- rbeta(ngene, 0.1 ,0.6)
   est.pi0   <- matrix(0, ngene, ncelltype)
-  est.pi0[, 1]   <-  rbeta(ngene, 3, 15)
-  if(ncelltype>1) {
-    for (K in 2:ncelltype) {
-       est.pi0[, K] <- est.pi0[, 1]
-    }
+  # start with small pi0 (close to zero)
+  est.pi0[, 1]   <-  rbeta(ngene, 3, 97)
+  for (K in 2:ncelltype) {
+    est.pi0[, K] <- est.pi0[, 1]
   }
-  est.dmu <- rgamma(ngene, 5, 5)
+
+  est.mu <- matrix(0, ngene, ncelltype)
+  # start with est.mu close to method of moments estimate
+  for (K in 1:ncelltype) {
+    est.mu[, K] <- rowMeans( (data.obs.adj %*% diag(1/est.sf) )[,cell.type==K])/(1-est.pi0[,K])
+  }
 
   # Initialize other variables
   loglik.vec <- rep(0, maxit)

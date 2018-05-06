@@ -56,7 +56,7 @@ lrTest <- function(data.obs, out, out2, cell.type, k, b, parallel) {
                          warning("Numerical problem in DE model for gene ", i);
                          NA
                        })
-      message(i, ' ', res2$par, ' ', Sys.time())
+      message(i, ' ', Sys.time())
       if (is.na(res1) | is.na(res2)) {
         return(rep(0, 5+2*ncelltype))
       } else {
