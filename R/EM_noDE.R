@@ -41,8 +41,10 @@ fitNoDE <- function (data.obs, CE, k, b, normalize, GQ.approx, maxit, parallel) 
   est.pi0   <- matrix(0, ngene, ncelltype)
   # start with small pi0 (close to zero)
   est.pi0[, 1]   <-  rbeta(ngene, 3, 97)
-  for (K in 2:ncelltype) {
-    est.pi0[, K] <- est.pi0[, 1]
+  if(ncelltype>1) {
+    for (K in 2:ncelltype) {
+      est.pi0[, K] <- est.pi0[, 1]
+    }
   }
 
   est.mu <- matrix(0, ngene, ncelltype)

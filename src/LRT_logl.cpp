@@ -78,14 +78,15 @@ double OptimLRTCpp::loglIBBCpp(NumericVector p) {
   int m = y.size();
   double pi0 = exp(p[0])/(1 + exp(p[0]));
   double size = exp( -p[p.size()-1] );
-  NumericVector mu(n);
-  for (i = 0; i < n; i++) {mu[i] = exp(p[1] + p[ct[i]] * (ct[i] > 1)) * sf[i];}
-  double rho_inv = 1+exp(-k*log((1-pi0)*Rcpp::mean(mu))-b);
+  double mu;
+  double rho_inv;
 
   NumericVector PZ(n);
   double prob;
   for (i = 0; i < n; i++) {
     PZ[i] = 0;
+    mu = exp(p[1] + p[ct[i]] * (ct[i] > 1)) * sf[i];
+    rho_inv = 1+exp(-k*log((1-pi0)*mu)-b);
     for (j = 0; j < m; j++) {
       prob = exp(DO_par(i, 0) + DO_par(i, 1)*log(y[j]+1)) / ( 1 + exp(DO_par(i, 0) + DO_par(i, 1)*log(y[j]+1)) );
       PZ[i] += dbetabinom_cpp(z[i], y[j], (rho_inv-1)*prob, (rho_inv-1)*(1-prob)) *
@@ -163,9 +164,8 @@ NumericVector OptimLRTCpp::loglIBBGradCpp(NumericVector p) {
   int nct = max(ct);
   double pi0 = exp(p[0])/(1 + exp(p[0]));
   double size = exp(-p[p.size()-1]);
-  NumericVector mu(n);
-  for (i = 0; i < n; i++) {mu[i] = exp(p[1] + p[ct[i]] * (ct[i] > 1)) * sf[i];}
-  double rho_inv = 1+exp(-k*log((1-pi0)*Rcpp::mean(mu))-b);
+  double mu;
+  double rho_inv;
 
   NumericVector grad_mat(nct+2);
   NumericVector grad_vec(nct+2);
@@ -173,6 +173,8 @@ NumericVector OptimLRTCpp::loglIBBGradCpp(NumericVector p) {
   double PZ, f0;
   for (i = 0; i < n; i++) {
     PZ = 0;
+    mu = exp(p[1] + p[ct[i]] * (ct[i] > 1)) * sf[i];
+    rho_inv = 1+exp(-k*log((1-pi0)*mu)-b);
     for (l = 0; l < nct+2; l++) { // initialize every iteration
       grad_mat[l] = 0;
     }
