@@ -90,10 +90,10 @@ double OptimLRTCpp::loglIBBCpp(NumericVector p) {
     for (j = 0; j < m; j++) {
       prob = exp(DO_par(i, 0) + DO_par(i, 1)*log(y[j]+1)) / ( 1 + exp(DO_par(i, 0) + DO_par(i, 1)*log(y[j]+1)) );
       PZ[i] += dbetabinom_cpp(z[i], y[j], (rho_inv-1)*prob, (rho_inv-1)*(1-prob)) *
-        dnbinom_mu(y[j], size, mu[i], 0) * (1-pi0);
+        dnbinom_mu(y[j], size, mu, 0) * (1-pi0);
     }
     if (z[i] == 0){
-      PZ[i] += ( pi0 + (1-pi0)*dnbinom_mu(0, size, mu[i], 0) );
+      PZ[i] += ( pi0 + (1-pi0)*dnbinom_mu(0, size, mu, 0) );
     }
     if (PZ[i] == 0){
       PZ[i] = std::numeric_limits<double>::min();
@@ -178,11 +178,11 @@ NumericVector OptimLRTCpp::loglIBBGradCpp(NumericVector p) {
     for (l = 0; l < nct+2; l++) { // initialize every iteration
       grad_mat[l] = 0;
     }
-    f0 = pi0 + (1-pi0)*dnbinom_mu(0, size, mu[i], 0);
+    f0 = pi0 + (1-pi0)*dnbinom_mu(0, size, mu, 0);
     for (j = 0; j < m; j++) {
       prob = exp(DO_par(i, 0) + DO_par(i, 1)*log(y[j]+1)) / ( 1 + exp(DO_par(i, 0) + DO_par(i, 1)*log(y[j]+1)) );
       DO_prob = dbetabinom_cpp(z[i], y[j], (rho_inv-1)*prob, (rho_inv-1)*(1-prob));
-      NB_prob = dnbinom_mu(y[j], size, mu[i], 0) * (1-pi0);
+      NB_prob = dnbinom_mu(y[j], size, mu, 0) * (1-pi0);
       PZ +=  DO_prob * NB_prob ;
       for (l = 0; l < nct+2; l++) {
         grad_mat[l] += DO_prob * zinbGradCpp(y[j], p, sf[i], ct[i])[l] * NB_prob;
